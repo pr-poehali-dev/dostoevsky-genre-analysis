@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
+import { Progress } from '@/components/ui/progress';
 
 interface Slide {
   id: number;
@@ -131,27 +132,96 @@ const slides: Slide[] = [
 
 export default function Index() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isAutoPlay, setIsAutoPlay] = useState(false);
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [viewedSlides, setViewedSlides] = useState<Set<number>>(new Set([0]));
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
-  const goToSlide = (index: number) => {
+  const goToSlide = useCallback((index: number) => {
     setCurrentSlide(index);
-  };
+    setViewedSlides(prev => new Set([...prev, index]));
+    setReadingProgress(0);
+  }, []);
 
-  const nextSlide = () => {
+  const nextSlide = useCallback(() => {
     if (currentSlide < slides.length - 1) {
-      setCurrentSlide(currentSlide + 1);
+      goToSlide(currentSlide + 1);
+    }
+  }, [currentSlide, goToSlide]);
+
+  const prevSlide = useCallback(() => {
+    if (currentSlide > 0) {
+      goToSlide(currentSlide - 1);
+    }
+  }, [currentSlide, goToSlide]);
+
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'f' || e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [nextSlide, prevSlide, isFullscreen]);
+
+  useEffect(() => {
+    if (!isAutoPlay) return;
+    
+    const timer = setInterval(() => {
+      if (currentSlide < slides.length - 1) {
+        nextSlide();
+      } else {
+        setIsAutoPlay(false);
+      }
+    }, 10000);
+
+    return () => clearInterval(timer);
+  }, [isAutoPlay, currentSlide, nextSlide]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const scrollTop = window.scrollY;
+      const progress = (scrollTop / (documentHeight - windowHeight)) * 100;
+      setReadingProgress(Math.min(progress, 100));
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
     }
   };
 
-  const prevSlide = () => {
-    if (currentSlide > 0) {
-      setCurrentSlide(currentSlide - 1);
-    }
-  };
+  const completionPercentage = ((viewedSlides.size / slides.length) * 100).toFixed(0);
+  const estimatedReadingTime = slides[currentSlide].content.join(' ').split(' ').length / 200;
 
   const slide = slides[currentSlide];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-background flex flex-col relative overflow-hidden">
+      <Progress value={(currentSlide / (slides.length - 1)) * 100} className="fixed top-0 left-0 right-0 z-50 h-1" />
+      
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(212,175,55,0.05),transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(215,180,100,0.03),transparent_50%)]" />
       
@@ -165,9 +235,37 @@ export default function Index() {
               Жанровые особенности романа-поэмы Достоевского
             </h1>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <div className="px-4 py-2 rounded-full bg-accent/10 border border-accent/30 text-primary font-medium">
-              Слайд {currentSlide + 1} / {slides.length}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsAutoPlay(!isAutoPlay)}
+              className="gap-2"
+              title="Автовоспроизведение (10 сек/слайд)"
+            >
+              <Icon name={isAutoPlay ? "Pause" : "Play"} size={16} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleFullscreen}
+              title="Полноэкранный режим (F или F11)"
+            >
+              <Icon name={isFullscreen ? "Minimize2" : "Maximize2"} size={16} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowNotes(!showNotes)}
+              title="Показать заметки"
+            >
+              <Icon name="StickyNote" size={16} />
+            </Button>
+            <div className="px-4 py-2 rounded-full bg-accent/10 border border-accent/30 text-primary font-medium text-sm">
+              {currentSlide + 1} / {slides.length}
+            </div>
+            <div className="px-3 py-2 rounded-full bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
+              {completionPercentage}% просмотрено
             </div>
           </div>
         </div>
@@ -205,8 +303,41 @@ export default function Index() {
                   </p>
                 ))}
               </div>
+
+              <div className="mt-8 flex items-center gap-6 text-sm text-muted-foreground border-t border-border/30 pt-6">
+                <div className="flex items-center gap-2">
+                  <Icon name="Clock" size={16} />
+                  <span>~{Math.ceil(estimatedReadingTime)} мин чтения</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Icon name="FileText" size={16} />
+                  <span>{slide.content.join(' ').split(' ').length} слов</span>
+                </div>
+                {viewedSlides.has(currentSlide) && (
+                  <div className="flex items-center gap-2 text-accent">
+                    <Icon name="CheckCircle2" size={16} />
+                    <span>Просмотрено</span>
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
+
+          {showNotes && (
+            <Card className="mt-6 bg-amber-50/80 backdrop-blur-sm border-2 border-amber-200/50 shadow-lg rounded-xl p-6 animate-fade-in">
+              <div className="flex items-start gap-3">
+                <Icon name="Lightbulb" size={20} className="text-amber-600 mt-1" />
+                <div>
+                  <h3 className="font-bold text-amber-900 mb-2">Заметки для преподавателя</h3>
+                  <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+                    <li>Подчеркните важность концепции полифонии Бахтина</li>
+                    <li>Обратите внимание на связь с европейской традицией</li>
+                    <li>Используйте примеры из конкретных произведений</li>
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          )}
 
           <div className="mt-10 flex items-center justify-between animate-fade-in" style={{ animationDelay: '0.3s' }}>
             <Button 
@@ -225,13 +356,19 @@ export default function Index() {
                 <button
                   key={index}
                   onClick={() => goToSlide(index)}
-                  className={`h-3 rounded-full transition-all duration-300 ${
+                  className={`h-3 rounded-full transition-all duration-300 relative group ${
                     index === currentSlide 
                       ? 'bg-accent w-12 shadow-lg' 
+                      : viewedSlides.has(index)
+                      ? 'bg-accent/60 w-3 hover:bg-accent/80 hover:w-6'
                       : 'bg-muted w-3 hover:bg-accent/50 hover:w-6'
                   }`}
                   aria-label={`Перейти к слайду ${index + 1}`}
-                />
+                >
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-primary text-primary-foreground text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    Слайд {index + 1}
+                  </span>
+                </button>
               ))}
             </div>
 
@@ -247,19 +384,30 @@ export default function Index() {
             </Button>
           </div>
 
-          <div className="mt-8 flex justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2">
+          <div className="mt-8 flex justify-center gap-4 animate-fade-in flex-wrap" style={{ animationDelay: '0.4s' }}>
+            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2 hover:border-accent/50 transition-colors">
               <Icon name="Calendar" size={16} />
               <span>2024</span>
             </div>
-            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2">
+            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2 hover:border-accent/50 transition-colors">
               <Icon name="GraduationCap" size={16} />
               <span>Литературоведение</span>
             </div>
-            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2">
+            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2 hover:border-accent/50 transition-colors">
               <Icon name="FileText" size={16} />
               <span>Академическая презентация</span>
             </div>
+            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2 hover:border-accent/50 transition-colors">
+              <Icon name="Keyboard" size={16} />
+              <span>← → Навигация</span>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center text-xs text-muted-foreground/60 animate-fade-in" style={{ animationDelay: '0.5s' }}>
+            <p className="flex items-center justify-center gap-2">
+              <Icon name="Info" size={14} />
+              Используйте клавиши ← → или пробел для навигации • F для полноэкранного режима
+            </p>
           </div>
         </div>
       </main>
