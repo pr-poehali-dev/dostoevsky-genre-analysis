@@ -151,39 +151,56 @@ export default function Index() {
   const slide = slides[currentSlide];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border bg-card py-4 px-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/30 to-background flex flex-col relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(212,175,55,0.05),transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(215,180,100,0.03),transparent_50%)]" />
+      
+      <header className="border-b border-border/50 backdrop-blur-sm bg-card/80 py-6 px-6 relative z-10 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-primary">
-            Жанровые особенности романа-поэмы Достоевского
-          </h1>
-          <div className="text-sm text-muted-foreground">
-            Слайд {currentSlide + 1} из {slides.length}
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center border-2 border-accent/30">
+              <Icon name="BookOpen" size={24} className="text-accent" />
+            </div>
+            <h1 className="text-3xl font-bold text-primary tracking-tight">
+              Жанровые особенности романа-поэмы Достоевского
+            </h1>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <div className="px-4 py-2 rounded-full bg-accent/10 border border-accent/30 text-primary font-medium">
+              Слайд {currentSlide + 1} / {slides.length}
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-5xl">
-          <Card className="bg-card border-2 border-border shadow-2xl">
-            <div className="p-12">
+      <main className="flex-1 flex items-center justify-center p-8 relative z-10">
+        <div className="w-full max-w-6xl">
+          <Card className="bg-card/95 backdrop-blur-sm border-2 border-border/50 shadow-2xl rounded-2xl overflow-hidden animate-fade-in">
+            <div className="p-14">
               {slide.image && (
-                <div className="mb-8 rounded-lg overflow-hidden border-2 border-accent/20">
+                <div className="mb-10 rounded-xl overflow-hidden border-4 border-accent/20 shadow-xl animate-slide-in">
                   <img 
                     src={slide.image} 
                     alt={slide.title}
-                    className="w-full h-64 object-cover"
+                    className="w-full h-72 object-cover hover:scale-105 transition-transform duration-700"
                   />
                 </div>
               )}
               
-              <h2 className="text-4xl font-bold mb-8 text-primary border-b-2 border-accent pb-4">
-                {slide.title}
-              </h2>
+              <div className="relative">
+                <div className="absolute -left-6 top-0 w-1 h-full bg-gradient-to-b from-accent via-accent/50 to-transparent rounded-full" />
+                <h2 className="text-5xl font-bold mb-10 text-primary border-b-4 border-accent/30 pb-6 tracking-tight leading-tight">
+                  {slide.title}
+                </h2>
+              </div>
               
-              <div className="space-y-6 text-lg leading-relaxed text-foreground">
+              <div className="space-y-7 text-lg leading-[1.85] text-foreground/90">
                 {slide.content.map((paragraph, index) => (
-                  <p key={index} className="text-justify">
+                  <p 
+                    key={index} 
+                    className="text-justify first-letter:text-6xl first-letter:font-bold first-letter:text-accent first-letter:mr-2 first-letter:float-left first-letter:leading-none first-letter:mt-1 hover:text-foreground transition-colors duration-300"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
                     {paragraph}
                   </p>
                 ))}
@@ -191,27 +208,27 @@ export default function Index() {
             </div>
           </Card>
 
-          <div className="mt-8 flex items-center justify-between">
+          <div className="mt-10 flex items-center justify-between animate-fade-in" style={{ animationDelay: '0.3s' }}>
             <Button 
               onClick={prevSlide}
               disabled={currentSlide === 0}
               variant="outline"
               size="lg"
-              className="gap-2"
+              className="gap-2 h-12 px-6 border-2 hover:bg-accent/10 hover:border-accent/50 transition-all duration-300 disabled:opacity-30"
             >
-              <Icon name="ChevronLeft" size={20} />
-              Предыдущий
+              <Icon name="ChevronLeft" size={22} />
+              <span className="font-medium">Предыдущий</span>
             </Button>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               {slides.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => goToSlide(index)}
-                  className={`w-3 h-3 rounded-full transition-all ${
+                  className={`h-3 rounded-full transition-all duration-300 ${
                     index === currentSlide 
-                      ? 'bg-accent w-8' 
-                      : 'bg-muted hover:bg-muted-foreground/50'
+                      ? 'bg-accent w-12 shadow-lg' 
+                      : 'bg-muted w-3 hover:bg-accent/50 hover:w-6'
                   }`}
                   aria-label={`Перейти к слайду ${index + 1}`}
                 />
@@ -223,17 +240,35 @@ export default function Index() {
               disabled={currentSlide === slides.length - 1}
               variant="outline"
               size="lg"
-              className="gap-2"
+              className="gap-2 h-12 px-6 border-2 hover:bg-accent/10 hover:border-accent/50 transition-all duration-300 disabled:opacity-30"
             >
-              Следующий
-              <Icon name="ChevronRight" size={20} />
+              <span className="font-medium">Следующий</span>
+              <Icon name="ChevronRight" size={22} />
             </Button>
+          </div>
+
+          <div className="mt-8 flex justify-center gap-4 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2">
+              <Icon name="Calendar" size={16} />
+              <span>2024</span>
+            </div>
+            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2">
+              <Icon name="GraduationCap" size={16} />
+              <span>Литературоведение</span>
+            </div>
+            <div className="px-4 py-2 rounded-lg bg-card/80 backdrop-blur-sm border border-border/50 text-sm text-muted-foreground flex items-center gap-2">
+              <Icon name="FileText" size={16} />
+              <span>Академическая презентация</span>
+            </div>
           </div>
         </div>
       </main>
 
-      <footer className="border-t border-border bg-card py-4 px-6 text-center text-sm text-muted-foreground">
-        <p>Академическая презентация • Литературоведение • 2024</p>
+      <footer className="border-t border-border/50 backdrop-blur-sm bg-card/80 py-5 px-6 text-center relative z-10">
+        <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+          <Icon name="BookMarked" size={16} className="text-accent" />
+          Исследование творчества Ф.М. Достоевского
+        </p>
       </footer>
     </div>
   );
